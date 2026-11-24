@@ -16,8 +16,6 @@ const SHELL = [
   "sheets.js",
   "events.js",
   "boot.js",
-  "shared/u-sync.js",
-  "shared/u-auth.js",
   "manifest.json",
   "icon-180.png",
   "icon-192.png",
