@@ -1,5 +1,7 @@
 # main に反映するたびに、版の番号を自動で付けて GitHub Pages に公開する
 # （リポジトリの Settings → Pages → Source を「GitHub Actions」にしておく）
+# 公開の最後の工程（deploy-pages）は GitHub 側の一時エラーで失敗することがあるため、
+# 失敗したら1分待って自動でやり直す（最大3回）。3回とも失敗したら実行自体を失敗にする。
 name: 公開
 
 on:
@@ -21,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy3.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: 版の番号を付ける
@@ -32,3 +34,23 @@ jobs:
           path: .
       - id: deploy
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: 公開のやり直し待機（1回目）
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 60
+      - id: deploy2
+        if: steps.deploy.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: 公開のやり直し待機（2回目）
+        if: steps.deploy.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        run: sleep 60
+      - id: deploy3
+        if: steps.deploy.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: 公開結果の確認
+        if: steps.deploy.outcome == 'failure' && steps.deploy2.outcome == 'failure' && steps.deploy3.outcome == 'failure'
+        run: |
+          echo "公開が3回とも失敗しました（GitHub側の一時エラーの可能性）。時間をおいて再実行してください。"
+          exit 1
